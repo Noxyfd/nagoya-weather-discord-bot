@@ -1,0 +1,29 @@
+name: Nagoya Weather Discord Bot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 22 * * *"
+
+jobs:
+  post-weather:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Post Nagoya weather to Discord
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          WEATHER_LATITUDE: "35.1815"
+          WEATHER_LONGITUDE: "136.9066"
+          WEATHER_TIMEZONE: Asia/Tokyo
+        run: node ./send_nagoya_weather_to_discord.mjs
