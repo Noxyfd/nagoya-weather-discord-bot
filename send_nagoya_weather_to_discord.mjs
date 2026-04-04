@@ -162,7 +162,6 @@ function buildDiscordPayload(forecast, locationName) {
   const weekday = formatJapaneseWeekday(forecast.date);
 
   return {
-    content: "valoから逃げるな",
     embeds: [
       {
         title: `${weather.emoji} ${locationName}の天気予報`,
