@@ -168,20 +168,20 @@ function buildDiscordPayload(forecast, locationName) {
         description: `${forecast.date} (${weekday})\n${weather.label}`,
         color: weather.color,
         fields: [
-          createField("気温", `${formatNumber(forecast.minTemp)}℃ / ${formatNumber(forecast.maxTemp)}℃`, true),
+          createField("🌡️ 気温", `${formatNumber(forecast.minTemp)}℃ / ${formatNumber(forecast.maxTemp)}℃`, true),
           createField(
-            "降水",
+            "🌧️ 降水",
             `${formatIntegerOrDash(forecast.precipitationProbabilityMax)}% / ${formatNumberOrDash(forecast.precipitationSum)} mm`,
             true
           ),
-          createField("風", `${formatNumberOrDash(forecast.windSpeedMax)} km/h`, true),
-          createField("UV指数", formatNumberOrDash(forecast.uvIndexMax), true),
-          createField("日の出", extractClockOrDash(forecast.sunrise), true),
-          createField("日の入", extractClockOrDash(forecast.sunset), true),
-          createField("ひとこと", buildDailyAdvice(forecast), false),
+          createField("🍃 風", `${formatNumberOrDash(forecast.windSpeedMax)} km/h`, true),
+          createField("🧴 UV指数", formatNumberOrDash(forecast.uvIndexMax), true),
+          createField("🌅 日の出", extractClockOrDash(forecast.sunrise), true),
+          createField("🌇 日の入", extractClockOrDash(forecast.sunset), true),
+          createField("💡 ひとこと", buildDailyAdvice(forecast), false),
         ],
         footer: {
-          text: `今日の運勢: ${fortune.label} | ${fortune.comment}`,
+          text: `${fortune.emoji} 今日の運勢: ${fortune.label} | ${fortune.comment}`,
         },
         timestamp: new Date().toISOString(),
       },
@@ -269,12 +269,12 @@ function buildDailyAdvice(forecast) {
 
 function getDailyFortune(seedText) {
   const fortunes = [
-    { label: "大吉", comment: "攻める日。迷ったら前へ。" },
-    { label: "中吉", comment: "丁寧に積むと勝てる日。" },
-    { label: "小吉", comment: "焦らずやれば安定。" },
-    { label: "吉", comment: "普段通りが一番強い。" },
-    { label: "末吉", comment: "欲張らず堅実に。" },
-    { label: "凶", comment: "無理せず慎重にいこう。" },
+    { label: "大吉", emoji: "🏆", comment: "攻める日。迷ったら前へ。" },
+    { label: "中吉", emoji: "✨", comment: "丁寧に積むと勝てる日。" },
+    { label: "小吉", emoji: "🌱", comment: "焦らずやれば安定。" },
+    { label: "吉", emoji: "🍀", comment: "普段通りが一番強い。" },
+    { label: "末吉", emoji: "📘", comment: "欲張らず堅実に。" },
+    { label: "凶", emoji: "🛡️", comment: "無理せず慎重にいこう。" },
   ];
 
   let hash = 0;
