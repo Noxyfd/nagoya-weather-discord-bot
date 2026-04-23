@@ -229,6 +229,8 @@ function findRainPeak(hourlyEntries) {
 
 function buildDiscordPayload(forecast, locationName) {
   const weather = getWeatherPresentation(forecast.weatherCode);
+  const location = getLocationPresentation(locationName);
+  const color = location.color ?? weather.color;
   const fortune = getDailyFortune(forecast.date);
   const weekday = formatJapaneseWeekday(forecast.date);
   const umbrella = getUmbrellaAdvice(forecast);
@@ -239,13 +241,16 @@ function buildDiscordPayload(forecast, locationName) {
   return {
     embeds: [
       {
-        title: `${weather.emoji} ${locationName}の今日の天気`,
+        author: {
+          name: `${location.emoji} ${locationName}エリア`,
+        },
+        title: `${location.emoji} ${weather.emoji} ${locationName}の今日の天気`,
         description: [
           `${forecast.date} (${weekday})`,
-          `**今日の結論:** ${buildDecisionLine(forecast, umbrella, clothing, uv)}`,
+          `**${locationName}の結論:** ${buildDecisionLine(forecast, umbrella, clothing, uv)}`,
           buildHeadlineSummary(forecast),
         ].join("\n"),
-        color: weather.color,
+        color,
         fields: [
           createField("☂️ 傘レベル", umbrella.short, true),
           createField("🧥 服装", clothing.short, true),
@@ -268,9 +273,12 @@ function buildDiscordPayload(forecast, locationName) {
         timestamp: new Date().toISOString(),
       },
       {
-        title: "🕒 時間帯の目安",
+        author: {
+          name: `${location.emoji} ${locationName}エリア`,
+        },
+        title: `🕒 ${locationName}の時間帯の目安`,
         description: "朝の動き方が決めやすいように、07時 / 12時 / 18時の予報をまとめとるよ。",
-        color: weather.color,
+        color,
         fields: forecast.hourlySegments.map((segment) =>
           createField(segment.label, buildHourlySummary(segment), false)
         ),
@@ -337,6 +345,15 @@ function formatRainPeak(rainPeak) {
   }
 
   return `${rainPeak.time}ごろ (${Math.round(rainPeak.precipitationProbability)}%)`;
+}
+
+function getLocationPresentation(locationName) {
+  const table = {
+    名古屋: { emoji: "🏯", color: 0xd35400 },
+    福岡: { emoji: "🍜", color: 0x16a085 },
+  };
+
+  return table[locationName] || { emoji: "📍", color: null };
 }
 
 function getWeatherPresentation(code) {
