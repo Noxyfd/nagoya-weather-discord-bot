@@ -23,7 +23,18 @@ jobs:
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          WEATHER_LOCATION_NAME: Nagoya
           WEATHER_LATITUDE: "35.1815"
           WEATHER_LONGITUDE: "136.9066"
+          WEATHER_TIMEZONE: Asia/Tokyo
+        run: node ./send_nagoya_weather_to_discord.mjs
+
+      - name: Post Fukuoka weather to Discord
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          WEATHER_LOCATION_NAME: Fukuoka
+          WEATHER_LATITUDE: "33.5902"
+          WEATHER_LONGITUDE: "130.4017"
           WEATHER_TIMEZONE: Asia/Tokyo
         run: node ./send_nagoya_weather_to_discord.mjs

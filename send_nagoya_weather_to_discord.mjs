@@ -14,7 +14,7 @@ const config = {
   discordChannelId: dryRun ? optionalEnv("DISCORD_CHANNEL_ID") : requiredEnv("DISCORD_CHANNEL_ID"),
   latitude: numberEnv("WEATHER_LATITUDE", 35.1815),
   longitude: numberEnv("WEATHER_LONGITUDE", 136.9066),
-  locationName: process.env.WEATHER_LOCATION_NAME?.trim() || "名古屋",
+  locationName: normalizeLocationName(process.env.WEATHER_LOCATION_NAME?.trim() || "名古屋"),
   timezone: process.env.WEATHER_TIMEZONE?.trim() || "Asia/Tokyo",
 };
 
@@ -80,6 +80,15 @@ function requiredEnv(name) {
   }
 
   return value;
+}
+
+function normalizeLocationName(locationName) {
+  const names = {
+    Nagoya: "名古屋",
+    Fukuoka: "福岡",
+  };
+
+  return names[locationName] || locationName;
 }
 
 function numberEnv(name, fallback) {
