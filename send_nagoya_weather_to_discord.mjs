@@ -260,7 +260,7 @@ function buildDiscordPayload(forecast, locationName) {
       },
       {
         title: "🕒 時間帯の目安",
-        description: "朝の動き方が決めやすいように、07時 / 12時 / 18時の予報をまとめとるばい。",
+        description: "朝の動き方が決めやすいように、07時 / 12時 / 18時の予報をまとめとるよ。",
         color: weather.color,
         fields: forecast.hourlySegments.map((segment) =>
           createField(segment.label, buildHourlySummary(segment), false)
@@ -285,7 +285,7 @@ function buildDecisionLine(forecast, umbrella, clothing, uv) {
   }
 
   if (forecast.rainPeak && forecast.rainPeak.precipitationProbability >= 50) {
-    parts.push(`${forecast.rainPeak.time}に雨注意ばい`);
+    parts.push(`${forecast.rainPeak.time}に雨注意`);
   }
 
   return parts.join(" / ");
@@ -296,10 +296,10 @@ function buildHeadlineSummary(forecast) {
   const morningMood = forecast.minTemp <= 10 ? "朝は冷えるけん" : "朝はちょいひんやりで";
   const dayMood =
     forecast.maxTemp >= 25
-      ? "昼はちょい暑めばい"
+      ? "昼はちょい暑め"
       : forecast.maxTemp >= 20
-        ? "昼は過ごしやすかばい"
-        : "昼もひんやりしとるばい";
+        ? "昼は過ごしやすかよ"
+        : "昼もひんやりしとるよ";
 
   return `今日は${weather.label}やけん、${morningMood}、${dayMood}。`;
 }
@@ -314,17 +314,17 @@ function buildHourlySummary(segment) {
     segment.precipitationProbability === null
       ? ""
       : segment.precipitationProbability >= 60
-        ? " / 雨の可能性が高かばい"
+        ? " / 雨の可能性が高かよ"
         : segment.precipitationProbability >= 30
           ? " / にわか雨に気をつけんね"
-          : " / 雨の心配は少なめばい";
+          : " / 雨の心配は少なめ";
 
   return `${formatRounded(segment.temperature)}℃前後 / ${weather.label}${rainNote}`;
 }
 
 function formatRainPeak(rainPeak) {
   if (!rainPeak || rainPeak.precipitationProbability < 20) {
-    return "大きな山はなさそうばい";
+    return "大きな山はなさそう";
   }
 
   return `${rainPeak.time}ごろ (${Math.round(rainPeak.precipitationProbability)}%)`;
@@ -372,48 +372,48 @@ function getUmbrellaAdvice(forecast) {
   if (rainChance >= 70 || rainAmount >= 5) {
     return {
       short: "忘れず持っときんしゃい",
-      long: "傘は持って出た方が安心ばい。",
+      long: "傘は持って出た方が安心やね。",
     };
   }
 
   if (rainChance >= 30 || rainAmount > 0) {
     return {
-      short: "折りたたみ推奨ばい",
-      long: "折りたたみ傘があると安心やけん、入れとくとよかばい。",
+      short: "折りたたみ推奨",
+      long: "折りたたみ傘があると安心やけん、入れとくとよかよ。",
     };
   }
 
   return {
-    short: "なくてもよかばい",
-    long: "雨の心配はそこまで大きくなかばい。",
+    short: "なくてもよさそう",
+    long: "雨の心配はそこまで大きくなさそうよ。",
   };
 }
 
 function getClothingAdvice(forecast) {
   if (forecast.maxTemp >= 28) {
     return {
-      short: "半袖メインでよかばい",
-      long: "昼は暑くなりそうやけん、軽めの服装がちょうどよかばい。",
+      short: "半袖メインでよか",
+      long: "昼は暑くなりそうやけん、軽めの服装がちょうどよかよ。",
     };
   }
 
   if (forecast.maxTemp >= 22) {
     return {
-      short: "薄手+羽織りがよかばい",
-      long: "昼は動きやすか気温やけど、朝晩に備えて羽織りがあると助かるばい。",
+      short: "薄手+羽織りがよか",
+      long: "昼は動きやすか気温やけど、朝晩に備えて羽織りがあると助かるよ。",
     };
   }
 
   if (forecast.maxTemp >= 15) {
     return {
-      short: "長袖+上着が無難ばい",
-      long: "朝晩との寒暖差があるけん、軽い上着まであると安心ばい。",
+      short: "長袖+上着が無難",
+      long: "朝晩との寒暖差があるけん、軽い上着まであると安心やね。",
     };
   }
 
   return {
-    short: "しっかり防寒しときんしゃい",
-    long: "冷えやすか日やけん、防寒寄りの服装がよかばい。",
+    short: "しっかり防寒",
+    long: "冷えやすか日やけん、防寒寄りの服装がよかよ。",
   };
 }
 
@@ -422,21 +422,21 @@ function getUvAdvice(forecast) {
 
   if (uv >= 8) {
     return {
-      short: "しっかり対策ばい",
-      long: "日差しが強かけん、日焼け止めや帽子まであると安心ばい。",
+      short: "しっかり対策",
+      long: "日差しが強かけん、日焼け止めや帽子まであると安心やね。",
     };
   }
 
   if (uv >= 5) {
     return {
-      short: "軽めでよかばい",
-      long: "軽めの日焼け対策ばしとくと、だいぶ楽ばい。",
+      short: "軽めでよか",
+      long: "軽めの日焼け対策ばしとくと、だいぶ楽よ。",
     };
   }
 
   return {
-    short: "最低限でよかばい",
-    long: "UVは強すぎんけん、最低限の対策で十分ばい。",
+    short: "最低限でよか",
+    long: "UVは強すぎんけん、最低限の対策で十分よ。",
   };
 }
 
@@ -446,31 +446,31 @@ function getOutdoorAdvice(forecast) {
 
   if (rainChance >= 70 || wind >= 30) {
     return {
-      short: "計画は慎重にいくばい",
-      long: "長時間の外出は、空ば見ながら動いた方がよかばい。",
+      short: "計画は慎重に",
+      long: "長時間の外出は、空ば見ながら動いた方がよかよ。",
     };
   }
 
   if (rainChance >= 30) {
     return {
-      short: "傘があれば大丈夫ばい",
-      long: "外出はしやすかけど、傘があるとさらに安心ばい。",
+      short: "傘があれば大丈夫",
+      long: "外出はしやすかけど、傘があるとさらに安心やね。",
     };
   }
 
   return {
-    short: "動きやすか日ばい",
-    long: "外にも出やすいコンディションばい。",
+    short: "動きやすか日",
+    long: "外にも出やすいコンディションよ。",
   };
 }
 
 function getDailyFortune(seedText) {
   const fortunes = [
     { label: "大吉", emoji: "🏆", comment: "攻め時ばい。迷ったら前に出てよか。" },
-    { label: "中吉", emoji: "✨", comment: "丁寧に積んでいけば、うまくいくばい。" },
-    { label: "小吉", emoji: "🌱", comment: "焦らんで進めたら安定するばい。" },
-    { label: "吉", emoji: "🍀", comment: "普段通りがいちばん強かばい。" },
-    { label: "末吉", emoji: "📘", comment: "欲張らんで、堅実にいくとよかばい。" },
+    { label: "中吉", emoji: "✨", comment: "丁寧に積んでいけば、うまくいくよ。" },
+    { label: "小吉", emoji: "🌱", comment: "焦らんで進めたら安定するよ。" },
+    { label: "吉", emoji: "🍀", comment: "普段通りがいちばん強かよ。" },
+    { label: "末吉", emoji: "📘", comment: "欲張らんで、堅実にいくとよか。" },
     { label: "凶", emoji: "🛡️", comment: "無理せんで、慎重にいくばい。" },
   ];
 
