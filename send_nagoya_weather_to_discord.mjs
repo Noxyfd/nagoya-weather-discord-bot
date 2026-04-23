@@ -397,20 +397,20 @@ function getUmbrellaAdvice(forecast) {
 
   if (rainChance >= 70 || rainAmount >= 5) {
     return {
-      short: "忘れず持っときんしゃい",
+      short: "傘忘れんで",
       long: "傘は持って出た方が安心やね。",
     };
   }
 
   if (rainChance >= 30 || rainAmount > 0) {
     return {
-      short: "折りたたみ推奨",
+      short: "折りたたみ傘あると安心",
       long: "折りたたみ傘があると安心やけん、入れとくとよかよ。",
     };
   }
 
   return {
-    short: "なくてもよさそう",
+    short: "傘なしでもよさそう",
     long: "雨の心配はそこまで大きくなさそうよ。",
   };
 }
