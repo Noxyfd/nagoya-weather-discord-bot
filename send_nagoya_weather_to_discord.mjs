@@ -306,14 +306,14 @@ function buildMorningDecision(forecast, umbrella, clothing, uv) {
 }
 
 function buildConditionDashboard(forecast, uv) {
-  const rain = classifyRainRisk(forecast.precipitationProbabilityMax ?? 0);
-  const uvRisk = classifyUvRisk(forecast.uvIndexMax ?? 0);
-  const wind = classifyWindRisk(forecast.windSpeedMax ?? 0);
+  const rain = classifyRainRisk(forecast.precipitationProbabilityMax);
+  const uvRisk = classifyUvRisk(forecast.uvIndexMax);
+  const wind = classifyWindRisk(forecast.windSpeedMax);
 
   return [
-    `雨 ${buildGauge(rain.score)} ${formatPercent(forecast.precipitationProbabilityMax)}`,
-    `UV ${buildGauge(uvRisk.score)} ${formatNumberOrDash(forecast.uvIndexMax)}`,
-    `風 ${buildGauge(wind.score)} ${formatNumberOrDash(forecast.windSpeedMax)} km/h`,
+    `雨: ${rain.label} ${formatPercent(forecast.precipitationProbabilityMax)} | ${rain.action}`,
+    `UV: ${uvRisk.label} ${formatNumberOrDash(forecast.uvIndexMax)} | ${uvRisk.action}`,
+    `風: ${wind.label} ${formatNumberOrDash(forecast.windSpeedMax)} km/h | ${wind.action}`,
   ].join("\n");
 }
 
@@ -375,52 +375,59 @@ function buildCompactTimeBandLine(band) {
 }
 
 function classifyRainRisk(probability) {
+  if (probability === null) {
+    return { label: "不明", action: "確認できず" };
+  }
+
   if (probability >= 70) {
-    return { label: "高い", emoji: "🔴", score: 5 };
+    return { label: "高い", action: "傘必須" };
   }
 
   if (probability >= 50) {
-    return { label: "やや高い", emoji: "🟠", score: 4 };
+    return { label: "やや高い", action: "傘推奨" };
   }
 
   if (probability >= 30) {
-    return { label: "注意", emoji: "🟡", score: 3 };
+    return { label: "注意", action: "折りたたみ傘" };
   }
 
   if (probability >= 10) {
-    return { label: "低め", emoji: "🟢", score: 2 };
+    return { label: "低め", action: "傘なし寄り" };
   }
 
-  return { label: "かなり低め", emoji: "🟢", score: 1 };
+  return { label: "かなり低め", action: "傘なし寄り" };
 }
 
 function classifyUvRisk(uvIndex) {
+  if (uvIndex === null) {
+    return { label: "不明", action: "確認できず" };
+  }
+
   if (uvIndex >= 8) {
-    return { label: "強い", emoji: "🔴", score: 5 };
+    return { label: "強い", action: "しっかり対策" };
   }
 
   if (uvIndex >= 5) {
-    return { label: "普通", emoji: "🟡", score: 3 };
+    return { label: "普通", action: "軽め対策" };
   }
 
-  return { label: "弱め", emoji: "🟢", score: 1 };
+  return { label: "弱め", action: "最低限でOK" };
 }
 
 function classifyWindRisk(speed) {
+  if (speed === null) {
+    return { label: "不明", action: "確認できず" };
+  }
+
   if (speed >= 30) {
-    return { label: "強め", emoji: "🔴", score: 5 };
+    return { label: "強め", action: "外出注意" };
   }
 
   if (speed >= 20) {
-    return { label: "やや強め", emoji: "🟠", score: 3 };
+    return { label: "やや強め", action: "髪型注意" };
   }
 
-  return { label: "穏やか", emoji: "🟢", score: 1 };
-}
-
-function buildGauge(score) {
-  const normalized = Math.max(0, Math.min(5, score));
-  return "▰".repeat(normalized) + "▱".repeat(5 - normalized);
+  return { label: "穏やか", action: "問題なし" };
 }
 
 function formatPercent(value) {
