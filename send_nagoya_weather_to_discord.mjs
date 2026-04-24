@@ -271,12 +271,12 @@ function buildDiscordPayload(forecast, locationName) {
         title: `${locationName} 今日の行動メモ`,
         description: [
           `**${forecast.date} (${weekday})** | ${formatNumber(forecast.minTemp)}℃ → ${formatNumber(forecast.maxTemp)}℃`,
-          `**結論:** ${buildDecisionLine(forecast, umbrella, clothing, uv)}`,
+          `**今日の判断:** ${buildPrimaryDecision(forecast)}`,
           buildHeadlineSummary(forecast),
         ].join("\n"),
         color,
         fields: [
-          createField("🎒 持ち物・服装", buildMorningDecision(forecast, umbrella, clothing, uv), false),
+          createField("🎒 持ち物・服装", buildMorningDecision(forecast), false),
           createField("🕒 時間帯", buildCompactTimeBands(forecast.rainBands), false),
           createField("📊 リスク", buildConditionDashboard(forecast, uv), false),
           createField("💬 ひとこと", buildDailyNote(umbrella, clothing, uv, outdoor), false),
@@ -297,11 +297,19 @@ function createField(name, value, inline) {
   return { name: `\u200B\n${name}`, value, inline };
 }
 
-function buildMorningDecision(forecast, umbrella, clothing, uv) {
+function buildPrimaryDecision(forecast) {
   return [
-    umbrella.short,
-    clothing.short,
-    `UV ${uv.short}`,
+    summarizeUmbrellaDecision(forecast),
+    summarizeClothingDecision(forecast),
+    summarizeUvDecision(forecast),
+  ].join(" / ");
+}
+
+function buildMorningDecision(forecast) {
+  return [
+    `傘: ${getUmbrellaAction(forecast)}`,
+    `服装: ${getClothingAction(forecast)}`,
+    `UV: ${getUvAction(forecast)}`,
   ].join("\n");
 }
 
@@ -321,19 +329,6 @@ function buildDailyNote(umbrella, clothing, uv, outdoor) {
   return [umbrella.long, clothing.long, uv.long, outdoor.long].filter(Boolean).slice(0, 2).join("\n");
 }
 
-function buildDecisionLine(forecast, umbrella, clothing, uv) {
-  const parts = [umbrella.short, clothing.short];
-  const importantRainBand = getMostImportantRainBand(forecast.rainBands);
-
-  if (importantRainBand && importantRainBand.maxProbability >= 50) {
-    parts.push(`${importantRainBand.shortName}に雨注意`);
-  } else if ((forecast.uvIndexMax ?? 0) >= 5) {
-    parts.push(uv.short);
-  }
-
-  return parts.join(" / ");
-}
-
 function buildHeadlineSummary(forecast) {
   const weather = getWeatherPresentation(forecast.weatherCode);
   const morningMood = forecast.minTemp <= 10 ? "朝は冷えるけん" : "朝はちょいひんやりで";
@@ -347,17 +342,6 @@ function buildHeadlineSummary(forecast) {
   return `今日は${weather.label}やけん、${morningMood}、${dayMood}。`;
 }
 
-function formatRainBandsSummary(rainBands) {
-  const important = rainBands.filter((band) => (band.maxProbability ?? 0) >= 30);
-  if (important.length === 0) {
-    return "大きな雨の山はなさそう";
-  }
-
-  return important
-    .map((band) => `${band.shortName}${Math.round(band.maxProbability)}%`)
-    .join(" / ");
-}
-
 function buildCompactTimeBands(rainBands) {
   return rainBands.map((band) => buildCompactTimeBandLine(band)).join("\n");
 }
@@ -367,11 +351,138 @@ function buildCompactTimeBandLine(band) {
     return `${band.label}: データなし`;
   }
 
-  const weather = getWeatherPresentation(band.weatherCode);
   const temperature =
-    band.averageTemperature === null ? "-" : `${formatRounded(band.averageTemperature)}℃前後`;
+    band.averageTemperature === null ? "-" : `${formatRounded(band.averageTemperature)}℃`;
 
-  return `${band.label}: ${temperature} / 雨${Math.round(band.maxProbability)}%`;
+  return `${band.shortName}: ${temperature} / 雨${Math.round(band.maxProbability)}% / ${getTimeBandAction(band)}`;
+}
+
+function summarizeUmbrellaDecision(forecast) {
+  const probability = forecast.precipitationProbabilityMax ?? 0;
+  const amount = forecast.precipitationSum ?? 0;
+
+  if (probability >= 70 || amount >= 5) {
+    return "傘必須";
+  }
+
+  if (probability >= 30 || amount > 0) {
+    return "折りたたみ傘";
+  }
+
+  return "傘なし";
+}
+
+function summarizeClothingDecision(forecast) {
+  if (forecast.maxTemp >= 28) {
+    return "半袖";
+  }
+
+  if (forecast.maxTemp >= 22) {
+    return "薄手+羽織り";
+  }
+
+  if (forecast.maxTemp >= 15) {
+    return "上着あり";
+  }
+
+  return "防寒";
+}
+
+function summarizeUvDecision(forecast) {
+  const uv = forecast.uvIndexMax ?? 0;
+
+  if (uv >= 8) {
+    return "UV強め";
+  }
+
+  if (uv >= 5) {
+    return "UV軽め";
+  }
+
+  return "UV最低限";
+}
+
+function getUmbrellaAction(forecast) {
+  const decision = summarizeUmbrellaDecision(forecast);
+  if (decision === "傘必須") {
+    return "傘は持って出る";
+  }
+
+  if (decision === "折りたたみ傘") {
+    return "折りたたみ傘が無難";
+  }
+
+  return "傘なしでOK";
+}
+
+function getClothingAction(forecast) {
+  const decision = summarizeClothingDecision(forecast);
+  if (decision === "半袖") {
+    return "半袖メインでOK";
+  }
+
+  if (decision === "薄手+羽織り") {
+    return "薄手+羽織りが無難";
+  }
+
+  if (decision === "上着あり") {
+    return "長袖+上着が無難";
+  }
+
+  return "しっかり防寒";
+}
+
+function getUvAction(forecast) {
+  const decision = summarizeUvDecision(forecast);
+  if (decision === "UV強め") {
+    return "しっかり対策";
+  }
+
+  if (decision === "UV軽め") {
+    return "軽め対策";
+  }
+
+  return "最低限でOK";
+}
+
+function getTimeBandAction(band) {
+  if (band.maxProbability >= 70) {
+    return "傘必須";
+  }
+
+  if (band.maxProbability >= 50) {
+    return "傘推奨";
+  }
+
+  if (band.maxProbability >= 30) {
+    return "折りたたみ傘";
+  }
+
+  if (band.shortName === "帰宅") {
+    return "傘なし寄り";
+  }
+
+  if (band.averageTemperature === null) {
+    return "大きな注意なし";
+  }
+
+  if (band.averageTemperature <= 10) {
+    return "冷える";
+  }
+
+  if (band.averageTemperature <= 16) {
+    return "少しひんやり";
+  }
+
+  if (band.averageTemperature >= 28) {
+    return "暑さ注意";
+  }
+
+  if (band.averageTemperature >= 24) {
+    return "やや暑い";
+  }
+
+  return "動きやすい";
 }
 
 function classifyRainRisk(probability) {
@@ -432,12 +543,6 @@ function classifyWindRisk(speed) {
 
 function formatPercent(value) {
   return value === null ? "-" : `${Math.round(value)}%`;
-}
-
-function getMostImportantRainBand(rainBands) {
-  return rainBands
-    .filter((band) => band.maxProbability !== null)
-    .sort((a, b) => b.maxProbability - a.maxProbability)[0] ?? null;
 }
 
 function getLocationPresentation(locationName) {
