@@ -300,7 +300,9 @@ function createField(name, value, inline) {
 function buildMorningDecision(forecast, umbrella, clothing, uv) {
   return [
     `☂️ ${umbrella.short}`,
+    "",
     `🧥 ${clothing.short}`,
+    "",
     `🧴 UV ${uv.short}`,
   ].join("\n");
 }
@@ -312,7 +314,9 @@ function buildConditionDashboard(forecast, uv) {
 
   return [
     `${rain.emoji} 雨 ${buildGauge(rain.score)} ${formatPercent(forecast.precipitationProbabilityMax)}`,
+    "",
     `${uvRisk.emoji} UV ${buildGauge(uvRisk.score)} ${formatNumberOrDash(forecast.uvIndexMax)}`,
+    "",
     `${wind.emoji} 風 ${buildGauge(wind.score)} ${formatNumberOrDash(forecast.windSpeedMax)} km/h`,
   ].join("\n");
 }
@@ -359,7 +363,7 @@ function formatRainBandsSummary(rainBands) {
 }
 
 function buildCompactTimeBands(rainBands) {
-  return rainBands.map((band) => buildCompactTimeBandLine(band)).join("\n");
+  return rainBands.map((band) => buildCompactTimeBandLine(band)).join("\n\n");
 }
 
 function buildCompactTimeBandLine(band) {
