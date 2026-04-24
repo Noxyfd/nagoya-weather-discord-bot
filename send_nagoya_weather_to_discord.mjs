@@ -276,10 +276,10 @@ function buildDiscordPayload(forecast, locationName) {
         ].join("\n"),
         color,
         fields: [
-          createField("持ち物・服装", buildMorningDecision(forecast, umbrella, clothing, uv), false),
-          createField("時間帯", buildCompactTimeBands(forecast.rainBands), false),
-          createField("リスク", buildConditionDashboard(forecast, uv), false),
-          createField("ひとこと", buildDailyNote(umbrella, clothing, uv, outdoor), false),
+          createField("🎒 持ち物・服装", buildMorningDecision(forecast, umbrella, clothing, uv), false),
+          createField("🕒 時間帯", buildCompactTimeBands(forecast.rainBands), false),
+          createField("📊 リスク", buildConditionDashboard(forecast, uv), false),
+          createField("💬 ひとこと", buildDailyNote(umbrella, clothing, uv, outdoor), false),
         ],
         footer: {
           text: `${fortune.emoji} 今日の運勢: ${fortune.label} | ${fortune.comment}`,
