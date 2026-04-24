@@ -294,7 +294,7 @@ function buildDiscordPayload(forecast, locationName) {
 }
 
 function createField(name, value, inline) {
-  return { name, value, inline };
+  return { name, value: `\u200B\n${value}`, inline };
 }
 
 function buildMorningDecision(forecast, umbrella, clothing, uv) {
