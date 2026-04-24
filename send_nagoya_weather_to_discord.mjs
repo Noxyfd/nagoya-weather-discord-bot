@@ -270,34 +270,21 @@ function buildDiscordPayload(forecast, locationName) {
         },
         title: `${location.emoji} ${weather.emoji} ${locationName} 今日の行動メモ`,
         description: [
-          `**${forecast.date} (${weekday})**`,
-          "",
+          `**${forecast.date} (${weekday})** | ${formatNumber(forecast.minTemp)}℃ → ${formatNumber(forecast.maxTemp)}℃`,
           `**結論:** ${buildDecisionLine(forecast, umbrella, clothing, uv)}`,
-          "",
           buildHeadlineSummary(forecast),
         ].join("\n"),
         color,
         fields: [
-          createField("🎯 朝の判断", buildMorningDecision(forecast, umbrella, clothing, uv), false),
-          createField("📊 コンディション", buildConditionDashboard(forecast, uv, outdoor), false),
+          createField("🎯 持ち物・服装", buildMorningDecision(forecast, umbrella, clothing, uv), false),
+          createField("🕒 時間帯", buildCompactTimeBands(forecast.rainBands), false),
+          createField("📊 リスク", buildConditionDashboard(forecast, uv), false),
           createField("💡 ひとこと", buildDailyNote(umbrella, clothing, uv, outdoor), false),
         ],
         footer: {
           text: `${fortune.emoji} 今日の運勢: ${fortune.label} | ${fortune.comment}`,
         },
         timestamp: new Date().toISOString(),
-      },
-      {
-        author: {
-          name: `${location.emoji} ${locationName}エリア`,
-        },
-        title: `🕒 ${locationName} 時間帯チェック`,
-        description: "生活時間帯だけに絞って、雨と体感を見やすくまとめています。\n\u200B",
-        color,
-        fields: [
-          ...forecast.rainBands.map((band) => createField(band.label, buildTimeBandSummary(band), false)),
-          createField("📌 補足", buildSupplementalSummary(forecast, uv, outdoor), false),
-        ],
       },
     ],
     allowed_mentions: {
@@ -312,36 +299,26 @@ function createField(name, value, inline) {
 
 function buildMorningDecision(forecast, umbrella, clothing, uv) {
   return [
-    `☂️ 傘: **${umbrella.short}**`,
-    "",
-    `🧥 服装: **${clothing.short}**`,
-    "",
-    `🌧️ 雨: **${formatRainBandsSummary(forecast.rainBands)}**`,
-    "",
-    `🌡️ 気温: **${formatNumber(forecast.minTemp)}℃ → ${formatNumber(forecast.maxTemp)}℃**`,
-    "",
-    `🧴 UV: **${uv.short}**`,
+    `☂️ ${umbrella.short}`,
+    `🧥 ${clothing.short}`,
+    `🧴 UV ${uv.short}`,
   ].join("\n");
 }
 
-function buildConditionDashboard(forecast, uv, outdoor) {
+function buildConditionDashboard(forecast, uv) {
   const rain = classifyRainRisk(forecast.precipitationProbabilityMax ?? 0);
   const uvRisk = classifyUvRisk(forecast.uvIndexMax ?? 0);
   const wind = classifyWindRisk(forecast.windSpeedMax ?? 0);
 
   return [
-    `${rain.emoji} 雨　${buildGauge(rain.score)} ${rain.label} ${formatPercent(forecast.precipitationProbabilityMax)}`,
-    "",
-    `${uvRisk.emoji} UV　${buildGauge(uvRisk.score)} ${uvRisk.label} ${formatNumberOrDash(forecast.uvIndexMax)}`,
-    "",
-    `${wind.emoji} 風　${buildGauge(wind.score)} ${wind.label} ${formatNumberOrDash(forecast.windSpeedMax)} km/h`,
-    "",
-    `🚶 外出 ${outdoor.short}`,
+    `${rain.emoji} 雨 ${buildGauge(rain.score)} ${formatPercent(forecast.precipitationProbabilityMax)}`,
+    `${uvRisk.emoji} UV ${buildGauge(uvRisk.score)} ${formatNumberOrDash(forecast.uvIndexMax)}`,
+    `${wind.emoji} 風 ${buildGauge(wind.score)} ${formatNumberOrDash(forecast.windSpeedMax)} km/h`,
   ].join("\n");
 }
 
 function buildDailyNote(umbrella, clothing, uv, outdoor) {
-  return [umbrella.long, clothing.long, uv.long, outdoor.long].filter(Boolean).join("\n\n");
+  return [umbrella.long, clothing.long, uv.long, outdoor.long].filter(Boolean).slice(0, 2).join("\n");
 }
 
 function buildDecisionLine(forecast, umbrella, clothing, uv) {
@@ -381,9 +358,13 @@ function formatRainBandsSummary(rainBands) {
     .join(" / ");
 }
 
-function buildTimeBandSummary(band) {
+function buildCompactTimeBands(rainBands) {
+  return rainBands.map((band) => buildCompactTimeBandLine(band)).join("\n");
+}
+
+function buildCompactTimeBandLine(band) {
   if (band.maxProbability === null || band.weatherCode === null) {
-    return "データが取れんやったよ。";
+    return `${band.label}: データなし`;
   }
 
   const weather = getWeatherPresentation(band.weatherCode);
@@ -391,41 +372,7 @@ function buildTimeBandSummary(band) {
     band.averageTemperature === null ? "-" : `${formatRounded(band.averageTemperature)}℃前後`;
   const rain = classifyRainRisk(band.maxProbability);
 
-  return [
-    `${weather.emoji} ${weather.label} / ${temperature}`,
-    "",
-    `${rain.emoji} 雨 ${buildGauge(rain.score)} ${Math.round(band.maxProbability)}%`,
-    "",
-    `判断: ${formatRainBandAdvice(band)}`,
-  ].join("\n");
-}
-
-function formatRainBandAdvice(band) {
-  if (band.maxProbability >= 70) {
-    return `雨強めに注意 (${Math.round(band.maxProbability)}%)`;
-  }
-
-  if (band.maxProbability >= 50) {
-    return `雨の可能性あり (${Math.round(band.maxProbability)}%)`;
-  }
-
-  if (band.maxProbability >= 30) {
-    return `折りたたみ傘あると安心 (${Math.round(band.maxProbability)}%)`;
-  }
-
-  return `雨の心配は少なめ (${Math.round(band.maxProbability)}%)`;
-}
-
-function buildSupplementalSummary(forecast, uv, outdoor) {
-  return [
-    `🧴 UV: ${uv.short}`,
-    "",
-    `🚶 外出: ${outdoor.short}`,
-    "",
-    `🍃 風: ${formatNumberOrDash(forecast.windSpeedMax)} km/h`,
-    "",
-    `🌅 日の出: ${extractClockOrDash(forecast.sunrise)} / 🌇 日の入: ${extractClockOrDash(forecast.sunset)}`,
-  ].join("\n");
+  return `${band.label}: ${weather.emoji} ${temperature} / ${rain.emoji}雨${Math.round(band.maxProbability)}%`;
 }
 
 function classifyRainRisk(probability) {
