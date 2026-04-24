@@ -354,7 +354,7 @@ function buildCompactTimeBandLine(band) {
   const temperature =
     band.averageTemperature === null ? "-" : `${formatRounded(band.averageTemperature)}℃`;
 
-  return `${band.shortName}: ${temperature} / 雨${Math.round(band.maxProbability)}% / ${getTimeBandAction(band)}`;
+  return `${band.label}｜${temperature}｜雨${Math.round(band.maxProbability)}%｜${getTimeBandAction(band)}`;
 }
 
 function summarizeUmbrellaDecision(forecast) {
