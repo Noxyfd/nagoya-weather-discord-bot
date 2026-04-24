@@ -174,9 +174,9 @@ async function fetchForecast({ latitude, longitude, timezone }) {
     uvIndexMax: daily.uv_index_max?.[0] ?? null,
     windSpeedMax: daily.wind_speed_10m_max?.[0] ?? null,
     rainBands: [
-      evaluateRainBand("通勤", "🚃 通勤 07-09", 7, 9, hourlyEntries),
-      evaluateRainBand("昼", "🍱 昼 11-14", 11, 14, hourlyEntries),
-      evaluateRainBand("帰宅", "🏠 帰宅 17-20", 17, 20, hourlyEntries),
+      evaluateRainBand("通勤", "通勤 07-09", 7, 9, hourlyEntries),
+      evaluateRainBand("昼", "昼 11-14", 11, 14, hourlyEntries),
+      evaluateRainBand("帰宅", "帰宅 17-20", 17, 20, hourlyEntries),
     ],
   };
 }
@@ -268,7 +268,7 @@ function buildDiscordPayload(forecast, locationName) {
         author: {
           name: `${location.emoji} ${locationName}エリア`,
         },
-        title: `${location.emoji} ${weather.emoji} ${locationName} 今日の行動メモ`,
+        title: `${locationName} 今日の行動メモ`,
         description: [
           `**${forecast.date} (${weekday})** | ${formatNumber(forecast.minTemp)}℃ → ${formatNumber(forecast.maxTemp)}℃`,
           `**結論:** ${buildDecisionLine(forecast, umbrella, clothing, uv)}`,
@@ -276,10 +276,10 @@ function buildDiscordPayload(forecast, locationName) {
         ].join("\n"),
         color,
         fields: [
-          createField("🎯 持ち物・服装", buildMorningDecision(forecast, umbrella, clothing, uv), false),
-          createField("🕒 時間帯", buildCompactTimeBands(forecast.rainBands), false),
-          createField("📊 リスク", buildConditionDashboard(forecast, uv), false),
-          createField("💡 ひとこと", buildDailyNote(umbrella, clothing, uv, outdoor), false),
+          createField("持ち物・服装", buildMorningDecision(forecast, umbrella, clothing, uv), false),
+          createField("時間帯", buildCompactTimeBands(forecast.rainBands), false),
+          createField("リスク", buildConditionDashboard(forecast, uv), false),
+          createField("ひとこと", buildDailyNote(umbrella, clothing, uv, outdoor), false),
         ],
         footer: {
           text: `${fortune.emoji} 今日の運勢: ${fortune.label} | ${fortune.comment}`,
@@ -299,9 +299,9 @@ function createField(name, value, inline) {
 
 function buildMorningDecision(forecast, umbrella, clothing, uv) {
   return [
-    `☂️ ${umbrella.short}`,
-    `🧥 ${clothing.short}`,
-    `🧴 UV ${uv.short}`,
+    umbrella.short,
+    clothing.short,
+    `UV ${uv.short}`,
   ].join("\n");
 }
 
@@ -311,9 +311,9 @@ function buildConditionDashboard(forecast, uv) {
   const wind = classifyWindRisk(forecast.windSpeedMax ?? 0);
 
   return [
-    `${rain.emoji} 雨 ${buildGauge(rain.score)} ${formatPercent(forecast.precipitationProbabilityMax)}`,
-    `${uvRisk.emoji} UV ${buildGauge(uvRisk.score)} ${formatNumberOrDash(forecast.uvIndexMax)}`,
-    `${wind.emoji} 風 ${buildGauge(wind.score)} ${formatNumberOrDash(forecast.windSpeedMax)} km/h`,
+    `雨 ${buildGauge(rain.score)} ${formatPercent(forecast.precipitationProbabilityMax)}`,
+    `UV ${buildGauge(uvRisk.score)} ${formatNumberOrDash(forecast.uvIndexMax)}`,
+    `風 ${buildGauge(wind.score)} ${formatNumberOrDash(forecast.windSpeedMax)} km/h`,
   ].join("\n");
 }
 
@@ -370,9 +370,8 @@ function buildCompactTimeBandLine(band) {
   const weather = getWeatherPresentation(band.weatherCode);
   const temperature =
     band.averageTemperature === null ? "-" : `${formatRounded(band.averageTemperature)}℃前後`;
-  const rain = classifyRainRisk(band.maxProbability);
 
-  return `${band.label}: ${weather.emoji} ${temperature} / ${rain.emoji}雨${Math.round(band.maxProbability)}%`;
+  return `${band.label}: ${temperature} / 雨${Math.round(band.maxProbability)}%`;
 }
 
 function classifyRainRisk(probability) {
