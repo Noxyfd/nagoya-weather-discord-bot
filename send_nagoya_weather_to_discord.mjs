@@ -130,18 +130,12 @@ async function fetchForecast({ latitude, longitude, timezone }) {
   url.searchParams.set("timezone", timezone);
   url.searchParams.set("forecast_days", "1");
 
-  const response = await fetch(url, {
+  const payload = await fetchJsonWithRetry(url, {
     headers: {
       Accept: "application/json",
       "User-Agent": "nagoya-weather-discord-bot/1.0",
     },
   });
-
-  if (!response.ok) {
-    throw new Error(`Open-Meteo request failed: ${response.status} ${response.statusText}`);
-  }
-
-  const payload = await response.json();
   const daily = payload.daily;
   const hourly = payload.hourly;
 
@@ -179,52 +173,82 @@ async function fetchForecast({ latitude, longitude, timezone }) {
     sunset: daily.sunset?.[0] ?? null,
     uvIndexMax: daily.uv_index_max?.[0] ?? null,
     windSpeedMax: daily.wind_speed_10m_max?.[0] ?? null,
-    hourlySegments: [
-      pickHourlySlot(date, "07:00", "🌅 朝 07:00", hourlyEntries),
-      pickHourlySlot(date, "12:00", "☀️ 昼 12:00", hourlyEntries),
-      pickHourlySlot(date, "18:00", "🌙 夜 18:00", hourlyEntries),
+    rainBands: [
+      evaluateRainBand("通勤", "🚃 通勤 07-09", 7, 9, hourlyEntries),
+      evaluateRainBand("昼", "🍱 昼 11-14", 11, 14, hourlyEntries),
+      evaluateRainBand("帰宅", "🏠 帰宅 17-20", 17, 20, hourlyEntries),
     ],
-    rainPeak: findRainPeak(hourlyEntries),
   };
 }
 
-function pickHourlySlot(date, clock, label, hourlyEntries) {
-  const target = `${date}T${clock}`;
-  const entry = hourlyEntries.find((item) => item.time === target);
+async function fetchJsonWithRetry(url, options, attempts = 3) {
+  let lastError = null;
 
-  return {
-    label,
-    time: clock,
-    temperature: entry?.temperature ?? null,
-    weatherCode: entry?.weatherCode ?? null,
-    precipitationProbability: entry?.precipitationProbability ?? null,
-  };
-}
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`Open-Meteo request failed: ${response.status} ${response.statusText}`);
+      }
 
-function findRainPeak(hourlyEntries) {
-  let peak = null;
-
-  for (const entry of hourlyEntries) {
-    const hour = Number(entryClock(entry.time).slice(0, 2));
-    if (!Number.isFinite(hour) || hour < 6 || hour > 22) {
-      continue;
-    }
-
-    if (entry.precipitationProbability === null) {
-      continue;
-    }
-
-    if (!peak || entry.precipitationProbability > peak.precipitationProbability) {
-      peak = entry;
+      return await response.json();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) {
+        await delay(750 * attempt);
+      }
     }
   }
 
-  return peak
-    ? {
-        time: entryClock(peak.time),
-        precipitationProbability: peak.precipitationProbability,
-      }
-    : null;
+  throw lastError;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function evaluateRainBand(shortName, label, startHour, endHour, hourlyEntries) {
+  const entries = hourlyEntries.filter((entry) => {
+    const hour = Number(entryClock(entry.time).slice(0, 2));
+    return Number.isFinite(hour) && hour >= startHour && hour <= endHour;
+  });
+
+  if (entries.length === 0) {
+    return {
+      shortName,
+      label,
+      maxProbability: null,
+      averageTemperature: null,
+      weatherCode: null,
+    };
+  }
+
+  const peak = entries.reduce((best, entry) => {
+    if (entry.precipitationProbability === null) {
+      return best;
+    }
+
+    if (!best || entry.precipitationProbability > best.precipitationProbability) {
+      return entry;
+    }
+
+    return best;
+  }, null);
+
+  const temperatures = entries
+    .map((entry) => entry.temperature)
+    .filter((temperature) => temperature !== null);
+
+  return {
+    shortName,
+    label,
+    maxProbability: peak?.precipitationProbability ?? null,
+    averageTemperature:
+      temperatures.length > 0
+        ? temperatures.reduce((sum, temperature) => sum + temperature, 0) / temperatures.length
+        : null,
+    weatherCode: peak?.weatherCode ?? entries.find((entry) => entry.weatherCode !== null)?.weatherCode ?? null,
+  };
 }
 
 function buildDiscordPayload(forecast, locationName) {
@@ -244,7 +268,7 @@ function buildDiscordPayload(forecast, locationName) {
         author: {
           name: `${location.emoji} ${locationName}エリア`,
         },
-        title: `${location.emoji} ${weather.emoji} ${locationName}の今日の天気`,
+        title: `${location.emoji} ${weather.emoji} ${locationName}の朝メモ`,
         description: [
           `${forecast.date} (${weekday})`,
           `**${locationName}の結論:** ${buildDecisionLine(forecast, umbrella, clothing, uv)}`,
@@ -252,15 +276,10 @@ function buildDiscordPayload(forecast, locationName) {
         ].join("\n"),
         color,
         fields: [
-          createField("☂️ 傘レベル", umbrella.short, true),
+          createField("☂️ 傘", umbrella.short, true),
           createField("🧥 服装", clothing.short, true),
-          createField("🧴 UV対策", uv.short, true),
-          createField("🚶 外出", outdoor.short, true),
-          createField("⏱️ 雨ピーク", formatRainPeak(forecast.rainPeak), true),
+          createField("🌧️ 雨の山", formatRainBandsSummary(forecast.rainBands), true),
           createField("🌡️ 気温", `${formatNumber(forecast.minTemp)}℃ / ${formatNumber(forecast.maxTemp)}℃`, true),
-          createField("🍃 風", `${formatNumberOrDash(forecast.windSpeedMax)} km/h`, true),
-          createField("🌅 日の出", extractClockOrDash(forecast.sunrise), true),
-          createField("🌇 日の入", extractClockOrDash(forecast.sunset), true),
           createField(
             "💡 ひとこと",
             [umbrella.long, clothing.long, uv.long, outdoor.long].filter(Boolean).join(" "),
@@ -276,12 +295,13 @@ function buildDiscordPayload(forecast, locationName) {
         author: {
           name: `${location.emoji} ${locationName}エリア`,
         },
-        title: `🕒 ${locationName}の時間帯の目安`,
-        description: "朝の動き方が決めやすいように、07時 / 12時 / 18時の予報をまとめとるよ。",
+        title: `🕒 ${locationName}の時間帯チェック`,
+        description: "通勤・昼・帰宅の雨だけ拾いやすくまとめとるよ。",
         color,
-        fields: forecast.hourlySegments.map((segment) =>
-          createField(segment.label, buildHourlySummary(segment), false)
-        ),
+        fields: [
+          ...forecast.rainBands.map((band) => createField(band.label, buildRainBandSummary(band), false)),
+          createField("📌 補足", buildSupplementalSummary(forecast, uv, outdoor), false),
+        ],
       },
     ],
     allowed_mentions: {
@@ -296,13 +316,12 @@ function createField(name, value, inline) {
 
 function buildDecisionLine(forecast, umbrella, clothing, uv) {
   const parts = [umbrella.short, clothing.short];
+  const importantRainBand = getMostImportantRainBand(forecast.rainBands);
 
-  if ((forecast.uvIndexMax ?? 0) >= 5) {
+  if (importantRainBand && importantRainBand.maxProbability >= 50) {
+    parts.push(`${importantRainBand.shortName}に雨注意`);
+  } else if ((forecast.uvIndexMax ?? 0) >= 5) {
     parts.push(uv.short);
-  }
-
-  if (forecast.rainPeak && forecast.rainPeak.precipitationProbability >= 50) {
-    parts.push(`${forecast.rainPeak.time}に雨注意`);
   }
 
   return parts.join(" / ");
@@ -321,30 +340,58 @@ function buildHeadlineSummary(forecast) {
   return `今日は${weather.label}やけん、${morningMood}、${dayMood}。`;
 }
 
-function buildHourlySummary(segment) {
-  if (segment.temperature === null || segment.weatherCode === null) {
-    return "データが取れんやったばい。";
-  }
-
-  const weather = getWeatherPresentation(segment.weatherCode);
-  const rainNote =
-    segment.precipitationProbability === null
-      ? ""
-      : segment.precipitationProbability >= 60
-        ? " / 雨の可能性が高かよ"
-        : segment.precipitationProbability >= 30
-          ? " / にわか雨に気をつけんね"
-          : " / 雨の心配は少なめ";
-
-  return `${formatRounded(segment.temperature)}℃前後 / ${weather.label}${rainNote}`;
-}
-
-function formatRainPeak(rainPeak) {
-  if (!rainPeak || rainPeak.precipitationProbability < 20) {
+function formatRainBandsSummary(rainBands) {
+  const important = rainBands.filter((band) => (band.maxProbability ?? 0) >= 30);
+  if (important.length === 0) {
     return "大きな山はなさそう";
   }
 
-  return `${rainPeak.time}ごろ (${Math.round(rainPeak.precipitationProbability)}%)`;
+  return important
+    .map((band) => `${band.shortName}${Math.round(band.maxProbability)}%`)
+    .join(" / ");
+}
+
+function buildRainBandSummary(band) {
+  if (band.maxProbability === null || band.weatherCode === null) {
+    return "データが取れんやったよ。";
+  }
+
+  const weather = getWeatherPresentation(band.weatherCode);
+  const temperature =
+    band.averageTemperature === null ? "" : `${formatRounded(band.averageTemperature)}℃前後 / `;
+
+  return `${temperature}${weather.label} / ${formatRainBandAdvice(band)}`;
+}
+
+function formatRainBandAdvice(band) {
+  if (band.maxProbability >= 70) {
+    return `雨強めに注意 (${Math.round(band.maxProbability)}%)`;
+  }
+
+  if (band.maxProbability >= 50) {
+    return `雨の可能性あり (${Math.round(band.maxProbability)}%)`;
+  }
+
+  if (band.maxProbability >= 30) {
+    return `折りたたみ傘あると安心 (${Math.round(band.maxProbability)}%)`;
+  }
+
+  return `雨の心配は少なめ (${Math.round(band.maxProbability)}%)`;
+}
+
+function buildSupplementalSummary(forecast, uv, outdoor) {
+  return [
+    `UV: ${uv.short}`,
+    `外出: ${outdoor.short}`,
+    `風: ${formatNumberOrDash(forecast.windSpeedMax)} km/h`,
+    `日の出/日の入: ${extractClockOrDash(forecast.sunrise)} / ${extractClockOrDash(forecast.sunset)}`,
+  ].join("\n");
+}
+
+function getMostImportantRainBand(rainBands) {
+  return rainBands
+    .filter((band) => band.maxProbability !== null)
+    .sort((a, b) => b.maxProbability - a.maxProbability)[0] ?? null;
 }
 
 function getLocationPresentation(locationName) {

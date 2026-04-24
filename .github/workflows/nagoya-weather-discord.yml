@@ -38,3 +38,10 @@ jobs:
           WEATHER_LONGITUDE: "130.4017"
           WEATHER_TIMEZONE: Asia/Tokyo
         run: node ./send_nagoya_weather_to_discord.mjs
+
+      - name: Notify Discord on failure
+        if: failure()
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+        run: node ./send_action_failure_notification.mjs
