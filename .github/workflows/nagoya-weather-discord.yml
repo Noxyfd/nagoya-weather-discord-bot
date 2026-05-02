@@ -2,8 +2,6 @@ name: Nagoya Weather Discord Bot
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 21 * * *"
 
 jobs:
   post-weather:

@@ -1,0 +1,18 @@
+name = "nagoya-fukuoka-discord-bot"
+main = "cloudflare-worker.mjs"
+compatibility_date = "2026-05-02"
+workers_dev = true
+
+[triggers]
+crons = [
+  "*/5 * * * *",
+  "0 21 * * *"
+]
+
+[[kv_namespaces]]
+binding = "EARTHQUAKE_STATE"
+id = "b2942dec6e994198adff6695853ac30b"
+
+[vars]
+DISCORD_CHANNEL_ID = "replace_with_discord_channel_id"
+EARTHQUAKE_MAX_REPORT_AGE_MINUTES = "360"
