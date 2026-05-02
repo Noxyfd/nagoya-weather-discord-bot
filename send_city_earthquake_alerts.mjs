@@ -13,17 +13,18 @@ loadDotEnv(path.join(__dirname, ".env"));
 const config = {
   discordBotToken: dryRun ? optionalEnv("DISCORD_BOT_TOKEN") : requiredEnv("DISCORD_BOT_TOKEN"),
   discordChannelId: dryRun ? optionalEnv("DISCORD_CHANNEL_ID") : requiredEnv("DISCORD_CHANNEL_ID"),
+  maxReportAgeMinutes: numberEnv("EARTHQUAKE_MAX_REPORT_AGE_MINUTES", 360),
 };
 
 const targetCities = [
   {
-    cityCode: "2310000",
+    cityCodePrefixes: ["231"],
     name: "名古屋",
     emoji: "🏯",
     color: 0xd35400,
   },
   {
-    cityCode: "4013000",
+    cityCodePrefixes: ["4013"],
     name: "福岡",
     emoji: "🍜",
     color: 0x16a085,
@@ -38,7 +39,11 @@ main().catch((error) => {
 async function main() {
   const state = readState();
   const reports = await fetchEarthquakeReports();
-  const alerts = findTargetCityAlerts(reports, state.notifiedKeys ?? []);
+  const alerts = findTargetCityAlerts(
+    reports,
+    state.notifiedKeys ?? [],
+    config.maxReportAgeMinutes
+  );
 
   if (dryRun) {
     console.log(JSON.stringify({ alerts, state }, null, 2));
@@ -46,7 +51,7 @@ async function main() {
   }
 
   if (!state.initialized) {
-    const currentKeys = findTargetCityAlerts(reports, []).map((alert) => alert.key);
+    const currentKeys = findTargetCityAlerts(reports, [], config.maxReportAgeMinutes).map((alert) => alert.key);
     writeState({
       initialized: true,
       notifiedKeys: unique([...(state.notifiedKeys ?? []), ...currentKeys]).slice(-100),
@@ -123,6 +128,20 @@ function requiredEnv(name) {
   return value;
 }
 
+function numberEnv(name, fallback) {
+  const raw = process.env[name]?.trim();
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Environment variable ${name} must be a number.`);
+  }
+
+  return parsed;
+}
+
 function readState() {
   if (!fs.existsSync(statePath)) {
     return {
@@ -158,12 +177,13 @@ async function fetchEarthquakeReports() {
   return payload;
 }
 
-function findTargetCityAlerts(reports, notifiedKeys) {
+function findTargetCityAlerts(reports, notifiedKeys, maxReportAgeMinutes) {
   const notified = new Set(notifiedKeys);
   const latestReportByEvent = new Map();
+  const now = new Date();
 
   for (const report of reports) {
-    if (!report.eid || report.ttl !== "震源・震度情報") {
+    if (!report.eid || !isIntensityReport(report) || !isRecentReport(report, now, maxReportAgeMinutes)) {
       continue;
     }
 
@@ -176,12 +196,12 @@ function findTargetCityAlerts(reports, notifiedKeys) {
   const alerts = [];
   for (const report of latestReportByEvent.values()) {
     for (const city of targetCities) {
-      const intensity = findCityIntensity(report, city.cityCode);
+      const intensity = findCityIntensity(report, city);
       if (!intensity) {
         continue;
       }
 
-      const key = `${report.eid}:${city.cityCode}`;
+      const key = `${report.eid}:${city.name}`;
       if (notified.has(key)) {
         continue;
       }
@@ -204,10 +224,13 @@ function findTargetCityAlerts(reports, notifiedKeys) {
   return alerts.sort((a, b) => String(a.reportTime).localeCompare(String(b.reportTime)));
 }
 
-function findCityIntensity(report, cityCode) {
+function findCityIntensity(report, targetCity) {
   if (!Array.isArray(report.int)) {
     return null;
   }
+
+  const prefixes = targetCity.cityCodePrefixes ?? [targetCity.cityCode];
+  let maxIntensity = null;
 
   for (const prefecture of report.int) {
     if (!Array.isArray(prefecture.city)) {
@@ -215,13 +238,53 @@ function findCityIntensity(report, cityCode) {
     }
 
     for (const city of prefecture.city) {
-      if (String(city.code) === cityCode) {
-        return city.maxi || prefecture.maxi || report.maxi || "不明";
+      const code = String(city.code);
+      if (!prefixes.some((prefix) => code.startsWith(prefix))) {
+        continue;
+      }
+
+      const intensity = city.maxi || prefecture.maxi || report.maxi || "不明";
+      if (maxIntensity === null || compareIntensity(intensity, maxIntensity) > 0) {
+        maxIntensity = intensity;
       }
     }
   }
 
-  return null;
+  return maxIntensity;
+}
+
+function isIntensityReport(report) {
+  return report.en_ttl === "Earthquake and Seismic Intensity Information" || report.ttl === "震源・震度情報";
+}
+
+function isRecentReport(report, now, maxReportAgeMinutes) {
+  const timestamp = Date.parse(report.rdt || report.at || "");
+  if (!Number.isFinite(timestamp)) {
+    return false;
+  }
+
+  const ageMs = now.getTime() - timestamp;
+  return ageMs >= 0 && ageMs <= maxReportAgeMinutes * 60 * 1000;
+}
+
+function compareIntensity(left, right) {
+  return intensityRank(left) - intensityRank(right);
+}
+
+function intensityRank(intensity) {
+  const ranks = {
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5-": 5,
+    "5+": 6,
+    "6-": 7,
+    "6+": 8,
+    "7": 9,
+  };
+
+  return ranks[String(intensity)] ?? 0;
 }
 
 function buildDiscordPayload(alert) {
