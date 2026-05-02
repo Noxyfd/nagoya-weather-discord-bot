@@ -6,7 +6,7 @@ It supports two execution modes:
 
 - Cloudflare Workers
   - Current production scheduler.
-  - Runs weather every day at 06:00 JST and checks earthquakes every 5 minutes.
+  - Runs weather every day at 06:00 JST and checks earthquakes every minute.
 - GitHub Actions
   - Manual fallback only. Scheduled execution is disabled to avoid duplicate posts.
 - Windows Task Scheduler
@@ -44,7 +44,7 @@ The production Worker is `nagoya-fukuoka-discord-bot`.
 
 Cron triggers:
 
-- `*/5 * * * *`
+- `* * * * *`
   - Checks JMA earthquake information.
 - `0 21 * * *`
   - Posts weather at 06:00 JST.
