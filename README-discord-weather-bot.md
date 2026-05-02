@@ -1,11 +1,14 @@
 # Discord Weather Bot
 
-This workspace contains a Discord weather bot for Nagoya.
+This workspace contains a Discord bot that posts Nagoya/Fukuoka weather and city earthquake alerts.
 
 It supports two execution modes:
 
+- Cloudflare Workers
+  - Current production scheduler.
+  - Runs weather every day at 06:00 JST and checks earthquakes every 5 minutes.
 - GitHub Actions
-  - Recommended. Runs even when your PC is off.
+  - Manual fallback only. Scheduled execution is disabled to avoid duplicate posts.
 - Windows Task Scheduler
   - Local fallback. Requires your PC to be on.
 
@@ -13,8 +16,16 @@ It supports two execution modes:
 
 - `send_nagoya_weather_to_discord.mjs`
   - Fetches the forecast from Open-Meteo and posts a Discord embed.
+- `send_city_earthquake_alerts.mjs`
+  - Checks JMA earthquake intensity data for Nagoya/Fukuoka and posts alerts.
+- `cloudflare-worker.mjs`
+  - Cloudflare Workers implementation for weather and earthquake schedules.
+- `wrangler.toml`
+  - Cloudflare Worker configuration.
 - `.github/workflows/nagoya-weather-discord.yml`
-  - Runs the bot every day at 07:00 JST through GitHub Actions.
+  - Manual weather fallback through GitHub Actions.
+- `.github/workflows/city-earthquake-discord.yml`
+  - Manual earthquake fallback through GitHub Actions.
 - `register_nagoya_weather_bot_task.ps1`
   - Registers the local Windows scheduled task.
 - `.env.example`
@@ -27,7 +38,45 @@ It supports two execution modes:
 3. Give the bot `View Channel` and `Send Messages` permissions on the target channel.
 4. Enable Discord developer mode and copy the target channel ID.
 
-## GitHub Actions setup
+## Cloudflare Workers setup
+
+The production Worker is `nagoya-fukuoka-discord-bot`.
+
+Cron triggers:
+
+- `*/5 * * * *`
+  - Checks JMA earthquake information.
+- `0 21 * * *`
+  - Posts weather at 06:00 JST.
+
+Bindings:
+
+- `DISCORD_BOT_TOKEN`
+  - Secret.
+- `ADMIN_TOKEN`
+  - Secret for manual test endpoints.
+- `DISCORD_CHANNEL_ID`
+  - Plain variable.
+- `EARTHQUAKE_MAX_REPORT_AGE_MINUTES`
+  - Plain variable. Default is `360`.
+- `EARTHQUAKE_STATE`
+  - KV namespace for deduplicating earthquake notifications.
+
+Manual health check:
+
+```powershell
+Invoke-RestMethod https://nagoya-fukuoka-discord-bot.takuma1130h.workers.dev/health
+```
+
+Manual dry-run endpoints require the `x-admin-token` header:
+
+```powershell
+$headers = @{ "x-admin-token" = "your_admin_token_here" }
+Invoke-RestMethod -Headers $headers "https://nagoya-fukuoka-discord-bot.takuma1130h.workers.dev/run/weather?dryRun=1"
+Invoke-RestMethod -Headers $headers "https://nagoya-fukuoka-discord-bot.takuma1130h.workers.dev/run/earthquake?dryRun=1"
+```
+
+## GitHub Actions fallback setup
 
 1. Push this folder to a GitHub repository.
 2. Open the repository on GitHub.
@@ -37,11 +86,11 @@ It supports two execution modes:
    - `DISCORD_CHANNEL_ID`
 5. Go to the `Actions` tab.
 6. Open `Nagoya Weather Discord Bot`.
-7. Run `Run workflow` once for a manual test.
+7. Run `Run workflow` once for a manual fallback test.
 
 Notes:
 
-- GitHub Actions `schedule` uses UTC, so the workflow is set to `0 22 * * *`, which corresponds to 07:00 JST.
+- GitHub Actions schedules are intentionally disabled because Cloudflare Workers is the production scheduler.
 - Scheduled workflows run on the repository's default branch.
 - Scheduled workflows can be delayed during high GitHub Actions load.
 
