@@ -28,7 +28,7 @@ async function handleRequest(request, env) {
       ok: true,
       service: "nagoya-fukuoka-discord-bot",
       schedules: {
-        earthquake: "*/5 * * * *",
+        earthquake: "* * * * *",
         weather: "0 21 * * * (JST 06:00)",
       },
     });
